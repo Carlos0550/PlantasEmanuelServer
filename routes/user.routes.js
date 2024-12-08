@@ -7,6 +7,6 @@ const storage = multer.memoryStorage()
 const upload = multer({storage})
 
 router.post("/register-user", upload.none(), registerUser);
-router.get("/login-user",upload.none(), loginUser)
+router.post("/login-user",upload.none(), loginUser)
 
 module.exports = router
