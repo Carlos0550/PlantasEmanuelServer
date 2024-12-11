@@ -1,7 +1,7 @@
 const { pool } = require("../config/database.js");
 
 const saveProduct = async(req,res)=> {
-    const {  product_name, product_description, product_price, category_id } = req.body;
+    const {  product_name, product_description, product_price, product_category } = req.body;
     const images = req.files
 
     const query1 =  `
@@ -17,7 +17,7 @@ const saveProduct = async(req,res)=> {
         client = await pool.connect()
         await client.query("BEGIN")
 
-        const response = await client.query(query1, [product_name, product_description, category_id, product_price])
+        const response = await client.query(query1, [product_name, product_description, product_category, product_price])
 
         if(response.rowCount === 0){
             await client.query("ROLLBACK")
@@ -95,9 +95,7 @@ const getProducts = async(req,res) => {
 
             return acc;
         }, {});
-        //console.log(productsWithImages)
         const finalProducts = Object.values(productsWithImages);
-        //console.log(finalProducts)
         return res.status(200).json({ products: finalProducts });
     } catch (error) {
         console.log(error);
@@ -107,6 +105,80 @@ const getProducts = async(req,res) => {
     }
 };
 
+const updateProduct = async(req,res)=> {
+    const {  product_name, product_description, product_price, product_category } = req.body;
+    const images = req.files
+    const { product_id } = req.params
+console.log(product_id)
+    if(!product_id || !product_name || !product_description || !product_price) 
+        return res.status(400).json({ msg: "El servidor no recibió algunos datos necesarios" })
+    
+    if (!images || images.length === 0) {
+        return res.status(400).json({ msg: "No se recibieron imágenes para el producto" })
+    }
+
+    const query1 =  `
+        UPDATE products SET product_name = $1, product_description = $2, product_category = $3, product_price = $4 WHERE id = $5
+    `
+    const query2 = `
+        DELETE FROM product_images WHERE product_id = $1
+    `
+
+    const query3 = `
+            INSERT INTO product_images (product_id, image_name, image_type, image_size, image_data)
+            VALUES ($1, $2, $3, $4, $5);
+    `;
+
+    let client;
+    try {
+        client = await pool.connect()
+        await client.query("BEGIN")
+
+        const response = await client.query(query1, [product_name, product_description, product_category, product_price, product_id])
+
+        if(response.rowCount === 0){
+            await client.query("ROLLBACK")
+            return res.status(400).json({ msg: "No se pudo actualizar el producto" })
+        }
+
+        
+        const imageDeleteResponse = await client.query(query2, [product_id])
+        if(imageDeleteResponse.rowCount === 0){
+            await client.query("ROLLBACK")
+            return res.status(400).json({ msg: "No se pudieron eliminar las imágenes anteriores" })
+        }
+
+        const imageInsertPromises = images.map(image => {
+            const imageValues = [
+                product_id,
+                image.originalname,
+                image.mimetype,
+                image.size,
+                image.buffer
+            ];
+
+            return client.query(query3, imageValues);
+        });
+
+        const imageResponses = await Promise.all(imageInsertPromises);
+        console.log(imageResponses)
+        const totalInsertedImages = imageResponses.reduce((acc, imgRes) => acc + imgRes.rowCount, 0);
+        if (totalInsertedImages !== images.length) {
+            await client.query("ROLLBACK");
+            return res.status(400).json({ msg: "No se pudieron registrar todas las imágenes" });
+        }
+
+        await client.query("COMMIT")
+        return res.status(200).json({ msg: "Producto actualizado con éxito" })
+    } catch (error) {
+        console.log(error)
+        await client.query("ROLLBACK")
+        return res.status(500).json({ msg: "Error interno del servidor al registrar el producto" })
+    }finally{
+        if(client) client.release()
+    }
+}
+
 module.exports = {
-    saveProduct, getProducts
+    saveProduct, getProducts, updateProduct
 }
