@@ -127,13 +127,15 @@ const updateProduct = async (req, res) => {
 
         const newImages = images.filter(img => !imagesWithEditParsed.some(i => i.image_name === img.originalname && i.editing));
 
-        if(imagesToDelete.length > 0){
-            for (const imageName of imagesToDelete) {
-                const resultDelete = await client.query(`DELETE FROM product_images WHERE image_name = ANY($1) AND product_id = $2;`, [imageName, product_id]);
-                if(resultDelete.rowCount === 0){
-                    await client.query("ROLLBACK")
-                    return res.status(400).json({msg: "Ocurrió un error inesperado y no se pudo actualizar el producto."})
-                }
+        if(imagesToDelete.length > 0) {
+            const resultDelete = await client.query(
+                `DELETE FROM product_images WHERE image_name = ANY($1) AND product_id = $2;`, 
+                [imagesToDelete, product_id]
+            );
+            
+            if(resultDelete.rowCount === 0) {
+                await client.query("ROLLBACK");
+                return res.status(400).json({ msg: "Ocurrió un error inesperado y no se pudo actualizar el producto." });
             }
         }
 
