@@ -60,4 +60,50 @@ const editCategory = async(req,res) => {
     }
 }
 
-module.exports = { saveCategories, getCategories, editCategory }
+const getCountProductsWithCategory = async(req,res) => {
+    const { category_id } = req.params
+    console.log(category_id)
+    console.log("Me ejecuto en get count products with category")
+    const query1 = `
+        SELECT COUNT(*) AS count FROM products WHERE product_category = $1;
+    `
+    let client;
+    try {
+        client = await pool.connect()
+
+        const result = await client.query(query1, [category_id])
+        console.log(result)
+        if(result.rowCount > 0) return res.status(200).json({ countPrWithCat: result.rows[0].count })
+        else return res.status(200).json({ countPrWithCat: 0 })
+    } catch (error) {
+        console.log(error)
+        return res.status(500).json({ msg: "Error interno del servidor al encontrar las categorías" })
+    }finally{
+        
+        if(client) client.release()   
+    }
+}
+
+const deleteCategory = async(req,res) => {
+    const { category_id } = req.params;
+
+    if (!category_id) return res.status(400).json({ msg: "Faltan datos importantes" });
+
+    let client;
+    try {
+        client = await pool.connect();
+        await client.query("BEGIN");
+        const result2 = await client.query(`DELETE FROM categories WHERE id = $1;`, [category_id]);
+        await client.query("COMMIT");
+        if (result2.rowCount === 0) return res.status(400).json({ msg: "No se pudo eliminar la categoría" });
+        return res.status(200).json({ msg: "Categoría eliminada con exito" });
+    } catch (error) {
+        await client.query("ROLLBACK");
+        console.log(error);
+        return res.status(500).json({ msg: "Error interno del servidor al eliminar la categoría" });
+    } finally {
+        if (client) client.release();
+    }
+}
+
+module.exports = { saveCategories, getCategories, editCategory, getCountProductsWithCategory, deleteCategory }
