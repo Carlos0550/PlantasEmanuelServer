@@ -5,7 +5,7 @@ require('dotenv').config();
 const app = express();
 const {checkConnection} = require('./config/database.js');
 
-const userRoutes = require('./routes/user.routes.js');
+const adminsRoutes = require('./routes/admins.routes.js');
 const categoriesRoutes = require("./routes/categories.routes.js")
 const productsRoutes = require("./routes/products.routes.js")
 
@@ -16,7 +16,7 @@ app.use(express.json());
     await checkConnection()
 })()
 
-app.use('/api/users', userRoutes);
+app.use('/api/admins', adminsRoutes);
 app.use("/api/categories", categoriesRoutes);
 app.use("/api/products", productsRoutes)
 
