@@ -167,7 +167,35 @@ const getPromotions = async(req,res) => {
     }
 }
 
+const deletePromotion = async(req,res) => {
+    const { promotion_id } = req.params;
+
+    if(!promotion_id) return res.status(400).json({msg: "Faltan datos importantes"})
+
+    const client = await pool.connect()
+    try {
+        await client.query("BEGIN")
+        const response1 = await Promise.all([
+            client.query(`DELETE FROM promotions_images WHERE promotion_id = $1;`, [promotion_id]),
+            client.query(`DELETE FROM promotions_data WHERE promotion_id = $1;`, [promotion_id]),
+            client.query(`DELETE FROM promotions WHERE id = $1;`, [promotion_id]),
+        ])
+
+        if(response1.some(res => res.rowCount === 0)){
+            throw new Error("Algo salio mal al eliminar la promocion, por favor, recargue esta seccion e intente nuevamente.") 
+        }
+
+        await client.query("COMMIT")
+        res.status(200).json({msg: "Promocion eliminada con exito"})
+    } catch (error) {
+        console.log(error)
+        await client.query("ROLLBACK")
+        res.status(500).json({msg: error.message || "Error interno del servidor al eliminar la promocion"})
+    }
+}
+
 module.exports = { 
     savePromotion,
-    getPromotions
+    getPromotions,
+    deletePromotion
  }
