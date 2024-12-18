@@ -2,11 +2,11 @@ const { pool } = require("../config/database.js");
 
 const saveProduct = async(req,res)=> {
     console.log("Me ejecuto en save product")
-    const {  product_name, product_description, product_price, product_category } = req.body;
+    const {  product_name, product_description, product_price, product_category, product_stock } = req.body;
     const images = req.files
 
     const query1 =  `
-        INSERT INTO products(product_name, product_description, product_category, product_price) VALUES($1, $2, $3, $4) RETURNING id;
+        INSERT INTO products(product_name, product_description, product_category, product_price, stock) VALUES($1, $2, $3, $4, $5) RETURNING id;
     `
     const query2 = `
             INSERT INTO product_images (product_id, image_name, image_type, image_size, image_data)
@@ -18,7 +18,7 @@ const saveProduct = async(req,res)=> {
         client = await pool.connect()
         await client.query("BEGIN")
 
-        const response = await client.query(query1, [product_name, product_description, product_category, product_price])
+        const response = await client.query(query1, [product_name, product_description, product_category, product_price, product_stock])
 
         if(response.rowCount === 0){
             await client.query("ROLLBACK")
@@ -63,6 +63,7 @@ const getProducts = async(req,res) => {
         SELECT p.*, pi.image_name, pi.image_type, pi.image_size, pi.image_data
         FROM products p
         LEFT JOIN product_images pi ON p.id = pi.product_id
+        ORDER BY p.id ASC
     `;
 
     let client = await pool.connect();
@@ -107,7 +108,7 @@ const getProducts = async(req,res) => {
 };
 
 const updateProduct = async (req, res) => {
-    const { product_name, product_description, product_price, product_category, imagesWithEdit } = req.body;
+    const { product_name, product_description, product_price, product_category, imagesWithEdit, product_stock } = req.body;
     const images = req.files; 
     const { product_id } = req.params;
 
@@ -161,9 +162,10 @@ const updateProduct = async (req, res) => {
                 product_name = $1, 
                 product_description = $2, 
                 product_price = $3, 
-                product_category = $4 
-            WHERE id = $5;`, 
-            [product_name, product_description, product_price, product_category, product_id]
+                product_category = $4,
+                stock = $5
+            WHERE id = $6;`, 
+            [product_name, product_description, product_price, product_category, product_stock, product_id]
         );
 
         if(resultUpdateProduct.rowCount === 0){
