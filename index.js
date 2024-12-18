@@ -16,6 +16,7 @@ const adminsRoutes = require('./routes/admins.routes.js');
 const categoriesRoutes = require("./routes/categories.routes.js")
 const productsRoutes = require("./routes/products.routes.js")
 const promotionsRouter = require("./routes/promotions.routes.js")
+const bannersRouter = require("./routes/banners.routes.js")
 app.use(cors());
 app.use(express.json());
 
@@ -27,6 +28,7 @@ app.use('/api/admins', adminsRoutes);
 app.use("/api/categories", categoriesRoutes);
 app.use("/api/products", productsRoutes)
 app.use("/api/promotions", promotionsRouter);
+app.use("/api/banners", bannersRouter)
 
 // setInterval(() => {
 //     const argentinaTime = dayjs().tz("America/Buenos_Aires")
