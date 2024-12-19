@@ -207,4 +207,111 @@ const setAdminPsw = async (req, res) => {
         if (client) client.release()
     }
 }
-module.exports = { registerAdmin, loginAdmin, verifyAdminData, verifyOtp, setAdminPsw }
+
+const changePsw = async (req, res) => {
+    const { password, admin_email } = req.query
+
+    console.log(admin_email, password)
+    if (!admin_email || !password) return res.status(400).json({ message: "Algunos datos obligatorios no fueron proporcionados" });
+    const query1 = `
+        UPDATE admins SET admin_psw = $1 WHERE admin_email = $2;`
+
+    let client;
+    try {
+        client = await pool.connect()
+
+        await client.query("BEGIN")
+        const hashedPsw = await hashPassword(password)
+        const result = await client.query(query1, [hashedPsw, admin_email])
+        console.log(result)
+        if (result.rowCount === 0) {
+            await client.query("ROLLBACK")
+            return res.status(400).json({ msg: "No se pudo actualizar la contraseña" })
+        }
+
+        const htmlTemplate = `
+            <!DOCTYPE html>
+                <html lang="es">
+                <head>
+                <meta charset="UTF-8">
+                <style>
+                    body {
+                    background-color: #fff;
+                    color: #000;
+                    font-family: Arial, sans-serif;
+                    text-align: center;
+                    padding: 50px;
+                    }
+                    .container {
+                    max-width: 500px;
+                    margin: 0 auto;
+                    padding: 20px;
+                    border: 1px solid #000;
+                    border-radius: 10px;
+                    }
+                    h1 {
+                    color: #000;
+                    }
+                    .message {
+                    margin-top: 20px;
+                    font-size: 18px;
+                    }
+                    .new-password {
+                    font-size: 20px;
+                    font-weight: bold;
+                    margin-top: 10px;
+                    display: block;
+                    }
+                    .password-box {
+                    margin-top: 15px;
+                    font-size: 18px;
+                    padding: 10px;
+                    border: 1px solid #000;
+                    border-radius: 5px;
+                    width: 100%;
+                    background-color: #f4f4f4;
+                    }
+                    .back-button {
+                    margin-top: 20px;
+                    padding: 10px 20px;
+                    background-color: #000;
+                    color: #fff;
+                    border: none;
+                    border-radius: 5px;
+                    cursor: pointer;
+                    }
+                    .back-button:hover {
+                    background-color: #444;
+                    }
+                </style>
+                </head>
+                <body>
+
+                <div class="container">
+                    <h1>Contraseña Cambiada Exitosamente</h1>
+                    <div class="message">
+                    <p>Tu contraseña ha sido cambiada correctamente.</p>
+                    <p class="new-password">Nueva Contraseña:</p>
+                    <input type="text" class="password-box" value="${password}" readonly>
+                    </div>
+                </div>
+
+                </body>
+                </html>
+        `
+        const emailStatus = await sendEmail(admin_email, "Cambio de contraseña", htmlTemplate)
+        console.log(emailStatus)
+        if (!emailStatus) {
+            await client.query("ROLLBACK")
+            return res.status(400).json({ msg: "No se pudo enviar el correo de cambio de contraseña" })
+        }
+        await client.query("COMMIT")
+        return res.status(200).json({ msg: "Contraseña actualizada con exito" })
+    } catch (error) {
+        console.log(error)
+        return res.status(500).json({ msg: "Error interno del servidor al actualizar la contraseña" })
+    } finally {
+        if (client) client.release()
+    }
+}
+module.exports = { registerAdmin, loginAdmin, verifyAdminData, verifyOtp, setAdminPsw, changePsw }
